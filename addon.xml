@@ -2,7 +2,7 @@
 <addon id="service.subtitles.zimuzusub"
        name="ZiMuZu"
        version="1.0.0"
-       provider-name="taxigps">
+       provider-name="humi">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.simplejson" version="3.3.0"/>
