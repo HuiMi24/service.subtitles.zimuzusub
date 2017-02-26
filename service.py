@@ -3,6 +3,7 @@
 import re
 import os
 import sys
+import uuid
 import xbmc
 import urllib
 import urllib2
@@ -29,6 +30,24 @@ sys.path.append (__resource__)
 SEARCH_API   = 'http://www.zmz2017.com/search?keyword=%s&type=subtitle'
 ZIMUZU_BASE = 'http://www.zmz2017.com'
 UserAgent  = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)'
+
+
+def rmtree(path):
+    if isinstance(path, unicode):
+        path = path.encode('utf-8')
+    dirs, files = xbmcvfs.listdir(path)
+    for dir in dirs:
+        rmtree(os.path.join(path, dir))
+    for file in files:
+        xbmcvfs.delete(os.path.join(path, file))
+    xbmcvfs.rmdir(path)
+
+
+try:
+    rmtree(__temp__)
+except:
+    pass
+xbmcvfs.mkdirs(__temp__)
 
 def log(module, msg):
     xbmc.log((u"%s::%s - %s" % (__scriptname__,module,msg,)).encode('utf-8'),level=xbmc.LOGDEBUG )
@@ -59,7 +78,7 @@ def Search( item ):
     subtitles_list = []
 
     log( __name__ ,"Search for [%s] by name" % (os.path.basename( item['file_original_path'] ),))
-    log( __name__ ,"Searchiiiii for [%s] by name" % (item['title']))
+    #log( __name__ ,"Searchiiiii for [%s] by name" % (item['title']))
     if item['mansearch']:
         url = SEARCH_API % (item['mansearchstr'])
     else:
@@ -111,9 +130,12 @@ def Search( item ):
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
 
 def Download(url,lang):
-    try: shutil.rmtree(__temp__)
+    try: rmtree(__temp__)
     except: pass
-    try: os.makedirs(__temp__)
+    try:
+        uid = uuid.uuid4()
+        tempdir = os.path.join(__temp__, unicode(uid)[4])
+        xbmcvfs.mkdirs(tempdir)
     except: pass
 
     subtitle_list = []
@@ -122,23 +144,25 @@ def Download(url,lang):
         data = GetHttpData(url)
         soup = BeautifulSoup(data)
         download_link = soup.find('div', class_="subtitle-links tc").h3.a.get('href')
+        log(__name__, "the url is %s" % (url))
+        log(__name__, "download link is %s" % (download_link))
         data = GetHttpData(download_link)
     except:
         return []
     if len(data) < 1024:
         return []
-    tempfile = os.path.join(__temp__, "subtitles%s" % os.path.splitext(download_link)[1])
+    tempfile = os.path.join(tempdir, "subtitles%s" % os.path.splitext(download_link)[1])
     log(__name__, "tempfile is %s" % (tempfile))
     with open(tempfile, "wb") as subFile:
         subFile.write(data)
-    subFile.close()
+    #subFile.close()
     xbmc.sleep(500)
     if data[:4] == 'Rar!' or data[:2] == 'PK':
-        xbmc.executebuiltin(('XBMC.Extract("%s","%s")' % (tempfile,__temp__,)).encode('utf-8'), True)
-    path = __temp__
+        xbmc.executebuiltin(('XBMC.Extract("%s","%s")' % (tempfile,tempdir,)).encode('utf-8'), True)
+    path = tempdir
     dirs, files = xbmcvfs.listdir(path)
     if len(dirs) > 0:
-        path = os.path.join(__temp__, dirs[0].decode('utf-8'))
+        path = os.path.join(tempdir, dirs[0].decode('utf-8'))
         dirs, files = xbmcvfs.listdir(path)
     list = []
     log(__name__, "files is %s " % (files) )
